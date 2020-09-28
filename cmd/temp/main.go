@@ -1,8 +1,8 @@
 package main
 
 import (
-	"examples/internal/tempconv"
 	"fmt"
+	"go-tutorials/internal/tempconv"
 	"os"
 	"strconv"
 )
