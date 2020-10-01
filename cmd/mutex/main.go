@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-type signal struct{}
+var m sync.Mutex
+
+// STOP determines if gouroutine stageA will have stop or continue
+var STOP = false
 
 // DATA is an integer map who's key is also the value
 var DATA = make(map[int]int)
@@ -16,24 +19,28 @@ func random(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-func stageA(min, max int, out chan<- int, stopSig <-chan signal, wg *sync.WaitGroup) {
-	defer wg.Done()
+func stageA(min, max int, out chan<- int, wg *sync.WaitGroup) {
 	for {
-		select {
-		case <-stopSig:
+		m.Lock()
+		if STOP {
+			m.Unlock()
 			return
-		case out <- random(min, max):
 		}
+		m.Unlock()
+		out <- random(min, max)
 	}
 }
 
-func stageB(in <-chan int, stopSig chan<- signal, wg *sync.WaitGroup) {
+func stageB(in <-chan int, wg *sync.WaitGroup) {
 	defer wg.Done()
+	var i int
 	for {
-		i := <-in
+		i = <-in
 		if DATA[i] != 0 {
 			fmt.Println(DATA[i], i)
-			stopSig <- signal{}
+			m.Lock()
+			STOP = true
+			m.Unlock()
 			return
 		}
 		DATA[i] = i
@@ -41,17 +48,12 @@ func stageB(in <-chan int, stopSig chan<- signal, wg *sync.WaitGroup) {
 }
 
 func main() {
-
-	sigc := make(chan signal)
 	ch1 := make(chan int)
-
-	rand.Seed(time.Now().UnixNano())
-
 	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go stageA(1, 50, ch1, sigc, &wg)
-	go stageB(ch1, sigc, &wg)
-
+	rand.Seed(time.Now().UnixNano())
+	wg.Add(1)
+	go stageA(1, 50, ch1, &wg)
+	go stageB(ch1, &wg)
 	wg.Wait()
 
 	close(ch1)
