@@ -2,79 +2,98 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
 // Response struct
 type Response struct {
-	Msg  string
-	Data string
+	Msg    string
+	Data   string
+	Status int
 }
 
-func createRsp(msg string, data []byte) ([]byte, error) {
-	rsp := Response{Msg: msg, Data: string(data)}
-	rbytes, err := json.Marshal(rsp)
+func createRsp(msg string, data []byte, err error) Response {
+	var rsp Response
+	rsp.Msg = msg
 	if err != nil {
-		return nil, err
+		rsp.Data = err.Error()
+		rsp.Status = http.StatusInternalServerError
+	} else {
+		rsp.Data = string(data)
+		rsp.Status = http.StatusOK
 	}
-	return rbytes, err
+	return rsp
 }
 
 func handleDefault(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	var rbytes, data []byte
 	var err error
 	var rsp Response
 
+	msg := "ok"
+
 	data, err = getTasks()
 	if err != nil {
-		goto error
+		msg = "error"
 	}
 
-	rsp = Response{Msg: "ok", Data: string(data)}
+	rsp = createRsp(msg, data, err)
 	rbytes, err = json.Marshal(rsp)
 	if err != nil {
-		goto error
+		rsp = createRsp("error", nil, err)
 	}
-	w.Write(rbytes)
-	return
 
-error:
-	fmt.Println("error:", err)
-	w.Write([]byte(err.Error()))
+	w.WriteHeader(rsp.Status)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(rbytes)
 }
 
 func handleTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	var rbytes, data []byte
 	var err error
+	var rsp Response
+
+	msg := "ok"
 
 	switch r.Method {
 	case http.MethodGet:
 		data, err = getTasks()
 		if err != nil {
-			goto error
+			msg = "error"
 		}
 	case http.MethodPost:
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			goto error
+			msg = "error"
 		}
 		data = addTask(body)
 	}
 
-	rbytes, err = createRsp("ok", data)
+	rsp = createRsp(msg, data, err)
+	rbytes, err = json.Marshal(rsp)
 	if err != nil {
-		goto error
+		rsp = createRsp("error", nil, err)
 	}
-	w.Write(rbytes)
-	return
 
-error:
-	fmt.Println("error:", err)
-	w.Write([]byte(err.Error()))
+	w.WriteHeader(rsp.Status)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(rbytes)
+}
+
+func handleTimeout(w http.ResponseWriter, r *http.Request) {
+	var rbytes []byte
+	var err error
+	var rsp Response
+
+	//time.Sleep(2 * time.Second)
+	rsp = createRsp("ok", []byte("no delay"), nil)
+	rbytes, err = json.Marshal(rsp)
+	if err != nil {
+		rsp = createRsp("error", nil, err)
+	}
+
+	w.WriteHeader(rsp.Status)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(rbytes)
 }

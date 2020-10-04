@@ -19,6 +19,5 @@ func addTask(body []byte) []byte {
 	task := task.Task{Status: task.NEW}
 	json.Unmarshal(body, &task)
 	TaskList.ADD(task.Name, &task)
-
 	return []byte("Task Added")
 }

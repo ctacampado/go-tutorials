@@ -4,6 +4,7 @@ import (
 	"go-tutorials/internal/kvstore"
 	"net/http"
 	"os"
+	"time"
 )
 
 func getPort() string {
@@ -16,8 +17,10 @@ func getPort() string {
 
 func initServer(p string, m *http.ServeMux) *http.Server {
 	return &http.Server{
-		Addr:    ":" + p,
-		Handler: m,
+		Addr:         ":" + p,
+		Handler:      m,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
 	}
 }
 
@@ -29,6 +32,7 @@ func main() {
 	m := http.NewServeMux()
 	m.HandleFunc("/", handleDefault)
 	m.HandleFunc("/task", handleTask)
+	m.HandleFunc("/timeout", handleTimeout)
 
 	s := initServer(getPort(), m)
 	s.ListenAndServe()
